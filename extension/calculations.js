@@ -82,7 +82,7 @@
   }
   function turtle(task){
     const text=task.text || '';
-    if(!/площадь области (пересечения|объединения) фигур|точек с целочисленными координатами.*внутри (пересечения|объединения) фигур/i.test(text) || !/положительного направления оси ординат/i.test(text) || !/хвост опущен/i.test(text))return null;
+    if(!/(?:площадь|периметр) области (пересечения|объединения) фигур|точек с целочисленными координатами.*внутри (пересечения|объединения) фигур/i.test(text) || !/положительного направления оси ординат/i.test(text) || !/хвост опущен/i.test(text))return null;
     let code=task.code?.at(-1);
     if(!code)code=text.split(/следующий алгоритм:/i)[1]?.split(/Определите/i)[0];
     if(!code || code.length>4000)return null;
@@ -123,6 +123,25 @@
     });
     if(rectangles.some(r=>!r))return null;
     const [a,b]=rectangles,intersection=Math.max(0,Math.min(a.hiX,b.hiX)-Math.max(a.loX,b.loX))*Math.max(0,Math.min(a.hiY,b.hiY)-Math.max(a.loY,b.loY));
+    if(/периметр области (пересечения|объединения) фигур/i.test(text)){
+      // Compressed cells handle overlaps, containment and shared edges uniformly.
+      const xs=[...new Set([a.loX,a.hiX,b.loX,b.hiX])].sort((x,y)=>x-y);
+      const ys=[...new Set([a.loY,a.hiY,b.loY,b.hiY])].sort((x,y)=>x-y);
+      const intersect=/периметр области пересечения/i.test(text);
+      const inside=(r,x,y)=>x>r.loX&&x<r.hiX&&y>r.loY&&y<r.hiY;
+      const cells=xs.slice(1).map((_,i)=>ys.slice(1).map((_,j)=>{
+        const x=(xs[i]+xs[i+1])/2,y=(ys[j]+ys[j+1])/2;
+        return intersect?inside(a,x,y)&&inside(b,x,y):inside(a,x,y)||inside(b,x,y);
+      }));
+      let perimeter=0;
+      for(let i=0;i<xs.length-1;i++)for(let j=0;j<ys.length-1;j++)if(cells[i][j]){
+        if(!cells[i-1]?.[j])perimeter+=ys[j+1]-ys[j];
+        if(!cells[i+1]?.[j])perimeter+=ys[j+1]-ys[j];
+        if(!cells[i]?.[j-1])perimeter+=xs[i+1]-xs[i];
+        if(!cells[i]?.[j+1])perimeter+=xs[i+1]-xs[i];
+      }
+      return String(perimeter);
+    }
     if(/точек с целочисленными координатами/.test(text)){
       const include=/границ[^.]*учитывать(?! не)|включая.*границ/.test(text)&&!/учитывать не следует/.test(text);
       const count=r=>Math.max(0,include?Math.floor(r.hiX)-Math.ceil(r.loX)+1:Math.ceil(r.hiX)-Math.floor(r.loX)-1)*Math.max(0,include?Math.floor(r.hiY)-Math.ceil(r.loY)+1:Math.ceil(r.hiY)-Math.floor(r.loY)-1);

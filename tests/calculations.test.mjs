@@ -26,3 +26,14 @@ test('turtle computes translated rectangles and refuses unsupported angles',()=>
  assert.equal(GrCalculations.solve(sample),'192');
  assert.equal(GrCalculations.solve({...sample,code:[sample.code[0].replace('Налево 90','Налево 60')]}),null);
 });
+
+test('turtle perimeter: reported shared-edge case and geometric boundary cases',()=>{
+ const text='Исполнитель Черепаха. Голова направлена вдоль положительного направления оси ординат, хвост опущен. Определите периметр области объединения фигур, ограниченных заданным алгоритмом линиями.';
+ const code='Повтори 6 [Вперед 10 Направо 90 Вперед 13 Направо 90] Поднять хвост Вперед 7 Направо 90 Вперед 10 Направо 90 Опустить хвост Повтори 3 [Вперед 35 Налево 90 Вперед 55 Налево 90]';
+ assert.equal(GrCalculations.solve({text,code:[code]}),'206');
+ const rectangle=(x,y,w,h)=>`Повтори 2 [Вперед 10 Направо 90 Вперед 10 Направо 90] Поднять хвост Вперед ${y} Направо 90 Вперед ${x} Налево 90 Опустить хвост Повтори 2 [Вперед ${h} Направо 90 Вперед ${w} Направо 90]`;
+ for(const [x,y,w,h,union,intersection] of [[5,5,10,10,60,20],[2,2,3,3,40,12],[0,0,10,10,40,40],[10,0,10,10,60,0],[10,10,10,10,80,0],[20,0,10,10,80,0]]){
+   assert.equal(GrCalculations.solve({text,code:[rectangle(x,y,w,h)]}),String(union));
+   assert.equal(GrCalculations.solve({text:text.replace('объединения','пересечения'),code:[rectangle(x,y,w,h)]}),String(intersection));
+ }
+});

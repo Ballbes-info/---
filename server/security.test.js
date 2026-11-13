@@ -16,3 +16,20 @@ test('login, auth, screenshot processing and origin restrictions',async()=>{
     assert.equal((await fetch(base+'/login',{method:'POST',headers:{...headers,Origin:'https://evil.example'},body:'{}'})).status,403);
   }finally{await new Promise(r=>app.close(r));}
 });
+test('async answers are accessible only to their session and missing API key is explicit',async()=>{
+  const app=createApp(env,async()=> '123');await new Promise(r=>app.listen(0,'127.0.0.1',r));
+  const base='http://127.0.0.1:'+app.address().port;
+  const headers={Origin:'chrome-extension://'+'a'.repeat(32),'Content-Type':'application/json',Authorization:'Bearer '+issue(env.SESSION_SECRET),Prefer:'respond-async'};
+  try {
+    const response=await fetch(base+'/solve',{method:'POST',headers,body:JSON.stringify({screenshot:'data:image/jpeg;base64,/9j/2Q=='})});
+    assert.equal(response.status,202);const {jobId}=await response.json();
+    const poll=await fetch(base+'/jobs/'+jobId,{headers});assert.equal(poll.status,200);assert.equal((await poll.json()).answer,'123');
+    const other=await fetch(base+'/jobs/'+jobId,{headers:{...headers,Authorization:'Bearer '+issue(env.SESSION_SECRET)}});assert.equal(other.status,404);
+  }finally{await new Promise(r=>app.close(r));}
+  const unconfigured=createApp(env);await new Promise(r=>unconfigured.listen(0,'127.0.0.1',r));
+  const second='http://127.0.0.1:'+unconfigured.address().port;
+  try {
+    assert.equal((await (await fetch(second+'/health')).json()).aiConfigured,false);
+    assert.equal((await fetch(second+'/solve',{method:'POST',headers,body:'{}'})).status,503);
+  }finally{await new Promise(r=>unconfigured.close(r));}
+});

@@ -64,6 +64,7 @@
     document.documentElement.append(host);
   }
   chrome.runtime.onMessage.addListener(message => {
+    if(message.type==='GR_PROGRESS') {if(visible && busy)output.textContent=message.text;return;}
     if (message.type === 'GR_CAPTURED') { if(host) host.style.visibility = ''; return; }
     if (message.type !== 'GR_TOGGLE') return;
     if (!host) create();

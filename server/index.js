@@ -1,11 +1,14 @@
 import http from 'node:http';
 import {pathToFileURL} from 'node:url';
+import {createHash,randomUUID} from 'node:crypto';
 import {equal,issue,valid,decodeImage} from './security.js';
 import {createSolver} from './gigachat.js';
-export function createApp(env=process.env, solve=createSolver(env)) {
+export function createApp(env=process.env, solve) {
+  const aiConfigured = !!solve || !!env.GIGACHAT_AUTH_KEY;
+  solve ||= createSolver(env);
   if(!env.ACCESS_PASSWORD || env.ACCESS_PASSWORD.length<4 || !env.SESSION_SECRET || env.SESSION_SECRET.length<32) throw new Error('Задайте ACCESS_PASSWORD (4+ символа) и SESSION_SECRET (32+ символов)');
   const allowed=new Set((env.ALLOWED_EXTENSION_IDS || '').split(',').filter(Boolean));
-  const attempts=new Map();let day='',total=0,inFlight=false;
+  const attempts=new Map(),jobs=new Map();let day='',total=0,inFlight=false;
   function limited(ip) {
     const now=Date.now();
     for(const [key,value] of attempts) if(value.until<now)attempts.delete(key);
@@ -17,10 +20,18 @@ export function createApp(env=process.env, solve=createSolver(env)) {
     const match=origin.match(/^chrome-extension:\/\/([a-p]{32})$/);
     const originAllowed=!!match && (!allowed.size || allowed.has(match[1]));
     const send=(code,data)=>{res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));};
-    if(req.url==='/health' && req.method==='GET')return send(200,{ok:true});
+    if(req.url==='/health' && req.method==='GET')return send(200,{ok:true,aiConfigured});
     if(!originAllowed)return send(403,{error:'Источник не разрешён'});
     res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin');
-    if(req.method==='OPTIONS'){res.setHeader('Access-Control-Allow-Methods','POST');res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization');res.writeHead(204);return res.end();}
+    if(req.method==='OPTIONS'){res.setHeader('Access-Control-Allow-Methods','GET, POST');res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization, Prefer');res.writeHead(204);return res.end();}
+    const jobRoute = req.url.match(/^\/jobs\/([a-f0-9-]{36})$/);
+    if(jobRoute && req.method==='GET') {
+      const auth=req.headers.authorization || '';
+      if(!valid(auth.replace(/^Bearer /,''),env.SESSION_SECRET))return send(401,{error:'Введите пароль заново'});
+      const job=jobs.get(jobRoute[1]);
+      if(!job || job.until<Date.now() || job.owner!==createHash('sha256').update(auth).digest('hex'))return send(404,{error:'Запрос истёк. Нажмите «Решить» заново'});
+      return send(job.status==='pending'?202:200,job.result || {pending:true});
+    }
     if(req.method!=='POST' || !['/login','/solve'].includes(req.url))return send(404,{error:'Не найдено'});
     const ip=env.TRUST_PROXY==='true' ? String(req.headers['x-forwarded-for'] || req.socket.remoteAddress).split(',').at(-1).trim() : req.socket.remoteAddress;
     if(req.url==='/login' && limited(ip))return send(429,{error:'Слишком много попыток. Повторите через 10 минут'});
@@ -34,16 +45,23 @@ export function createApp(env=process.env, solve=createSolver(env)) {
         if(typeof body?.password!=='string' || !equal(body.password,env.ACCESS_PASSWORD))return send(401,{error:'Неверный пароль'});
         return send(200,{token:issue(env.SESSION_SECRET)});
       }
+      if(!aiConfigured)return send(503,{error:'Сервер запущен, но ключ GigaChat ещё не добавлен'});
       let bytes;try {bytes=decodeImage(body?.screenshot);}catch(error){return send(400,{error:error.message});}
       const today=new Date().toISOString().slice(0,10);if(day!==today){day=today;total=0;}
       if(inFlight || total>=Number(env.DAILY_LIMIT || 100))return send(429,{error:'Сервер занят или достигнут дневной лимит'});
       total++;inFlight=true;
+      if(req.headers.prefer==='respond-async') {
+        for(const [key,value] of jobs)if(value.until<Date.now())jobs.delete(key);
+        const id=randomUUID(),job={status:'pending',until:Date.now()+300000,owner:createHash('sha256').update(req.headers.authorization).digest('hex')};
+        jobs.set(id,job);
+        Promise.resolve().then(()=>solve(bytes)).then(answer=>{job.result={answer};},()=>{job.result={error:'Не удалось получить ответ GigaChat. Проверьте ключ, модель и лимит'};}).finally(()=>{job.status='done';inFlight=false;});
+        return send(202,{jobId:id});
+      }
       try {return send(200,{answer:await solve(bytes)});}finally{inFlight=false;}
     } catch {return send(502,{error:'Не удалось получить ответ ИИ. Проверьте настройки и лимит GigaChat'});}
   });
 }
 if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
-  if(!process.env.GIGACHAT_AUTH_KEY) throw new Error('Не задан GIGACHAT_AUTH_KEY');
   const server=createApp();server.requestTimeout=30000;
   server.listen(Number(process.env.PORT || 3000),'0.0.0.0',()=>console.log('GR-vasya server listening'));
 }

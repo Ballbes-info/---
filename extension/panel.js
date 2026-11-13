@@ -1,11 +1,14 @@
 (() => {
   if (globalThis.__grVasyaLoaded) return;
   globalThis.__grVasyaLoaded = true;
-  let host, button, output, password, notice, authenticated = false, visible = false, busy = false, epoch = 0, requestEpoch = -1;
+  let host, button, aiButton, output, password, notice, aiOffer = null, authenticated = false, visible = false, busy = false, epoch = 0, requestEpoch = -1;
+  const identity = context => context ? JSON.stringify([context.text,context.formula,context.tables,context.code]) : location.href;
   function render() {
     password.hidden = authenticated;
     notice.hidden = authenticated;
     button.disabled = busy;
+    aiButton.hidden = !authenticated || aiOffer === null;
+    aiButton.disabled = busy;
     button.textContent = busy ? (authenticated ? 'Решаю…' : 'Вхожу…') : (authenticated ? 'Решить' : 'Войти');
   }
   function create() {
@@ -18,8 +21,10 @@
       button{width:100%;padding:9px;border:0;border-radius:6px;background:#3367d6;color:white;cursor:pointer;font:inherit}button:disabled{opacity:.6}
       output{display:block;white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;margin-top:6px}output:empty{display:none}
       input{box-sizing:border-box;width:100%;padding:8px;margin-bottom:8px;border:1px solid #c6cbd3;border-radius:6px;font:inherit}small{display:block;font-size:11px;line-height:1.3;margin-bottom:8px}[hidden]{display:none}
-    </style><section><header title="Перетащить окно" aria-label="Перетащить окно"></header><small>«Решить» читает текущее задание. Если нужна модель, текст и снимок отправляются в GigaChat.</small><input type="password" placeholder="Пароль" aria-label="Пароль доступа" autocomplete="off"><button>Войти</button><output aria-live="polite"></output></section>`;
+      #ai{margin-top:6px;background:#526176}
+    </style><section><header title="Перетащить окно" aria-label="Перетащить окно"></header><small>«Решить» вычисляет локально. Отправка в GigaChat — только отдельной кнопкой.</small><input type="password" placeholder="Пароль" aria-label="Пароль доступа" autocomplete="off"><button>Войти</button><button id="ai" hidden>Отправить в GigaChat</button><output aria-live="polite"></output></section>`;
     button = root.querySelector('button'); output = root.querySelector('output');
+    aiButton = root.querySelector('#ai');
     password = root.querySelector('input'); notice = root.querySelector('small');
     password.onkeydown = event => {if(event.key === 'Enter') {event.preventDefault();button.click();}};
     const handle = root.querySelector('header');
@@ -34,14 +39,16 @@
       };
       handle.onpointerup = handle.onpointercancel = () => { handle.onpointermove = null; };
     });
-    button.onclick = async () => {
+    async function run(useAi=false) {
       if (busy) return;
+      const context=globalThis.GrTaskContext?.extract() || null;
+      if(useAi && (aiOffer===null || aiOffer!==identity(context))){aiOffer=null;output.textContent='Задание изменилось. Нажмите «Решить».';render();return;}
       if (!authenticated && !password.value) {password.focus();return;}
       const login = !authenticated;
       busy = true; render(); output.textContent = '';
       requestEpoch = epoch;
       const keepAlive = setInterval(() => chrome.runtime.sendMessage({type:'GR_PING'}).catch(() => {}), 20000);
-      if (!login) host.style.visibility = 'hidden';
+      if (!login && useAi) host.style.visibility = 'hidden';
       try {
         let result;
         if (login) {
@@ -50,17 +57,22 @@
           if (result?.authenticated) authenticated = true;
         } else {
           await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-          result = await chrome.runtime.sendMessage({type:'GR_SOLVE',taskContext:globalThis.GrTaskContext?.extract() || null});
+          result = await chrome.runtime.sendMessage({type:useAi?'GR_SOLVE_AI':'GR_SOLVE',taskContext:context});
           if (result?.authRequired) authenticated = false;
         }
-        if (visible && requestEpoch === epoch) output.textContent = result?.error || result?.answer || (login ? '' : 'Пустой ответ');
+        if (visible && requestEpoch === epoch) {
+          aiOffer=result?.needsAi ? identity(context) : null;
+          output.textContent = result?.needsAi ? 'Этот тип пока не поддерживается. Отправить текущее задание в GigaChat?' : result?.error || result?.answer || (login ? '' : 'Пустой ответ');
+        }
       } catch (error) {
         if (visible && requestEpoch === epoch) output.textContent = error.message;
       } finally {
         clearInterval(keepAlive);
         busy = false; render(); host.style.visibility = '';
       }
-    };
+    }
+    button.onclick=()=>run(false);
+    aiButton.onclick=()=>run(true);
     document.documentElement.append(host);
   }
   chrome.runtime.onMessage.addListener(message => {
@@ -69,7 +81,7 @@
     if (message.type !== 'GR_TOGGLE') return;
     if (!host) create();
     visible = !visible; epoch++;
-    output.textContent = ''; password.value = '';
+    output.textContent = ''; password.value = ''; aiOffer=null;
     host.style.display = visible ? 'block' : 'none';
     render();
     if (visible) {

@@ -26,11 +26,17 @@ test('recognised local logic question avoids AI and screenshot upload',async()=>
  assert.equal((await p.call({type:'GR_SOLVE',taskContext:{text:'Полное условие',formula:'Q→A'}},'https://vgaranov.ru/')).answer,'195');
  assert.equal(p.counts().apiCalls,0);assert.equal(p.counts().captures,0);
 });
-test('every solve captures again and a new browser session starts locked',async()=>{
+test('unsupported task only offers AI, without screenshots or API calls',async()=>{
+ const p=setup();await p.call({type:'GR_LOGIN',password:'test-pass'});
+ const before=p.counts();
+ assert.equal((await p.call({type:'GR_SOLVE'})).needsAi,true);
+ assert.deepEqual(p.counts(),before);
+});
+test('explicit AI request captures again and a new browser session starts locked',async()=>{
  const p=setup();assert.equal((await p.call({type:'GR_SOLVE'})).authRequired,true);
  await p.call({type:'GR_LOGIN',password:'test-pass'});
- assert.equal((await p.call({type:'GR_SOLVE'})).answer,'42');
- assert.equal((await p.call({type:'GR_SOLVE'})).answer,'42');
+ assert.equal((await p.call({type:'GR_SOLVE_AI'})).answer,'42');
+ assert.equal((await p.call({type:'GR_SOLVE_AI'})).answer,'42');
  assert.deepEqual(p.screenshots,['shot-1','shot-2']);
  assert.equal((await setup().call({type:'GR_STATUS'})).authenticated,false);
 });

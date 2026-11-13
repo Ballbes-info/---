@@ -20,7 +20,7 @@ chrome.action.onClicked.addListener(tab=>toggle(tab).catch(console.error));
 chrome.runtime.onMessage.addListener((message,sender,reply)=>{
   if(!sender.tab || (sender.frameId && sender.frameId!==0))return;
   if(message.type==='GR_PING'){reply({ok:true});return;}
-  if(!['GR_STATUS','GR_LOGIN','GR_SOLVE'].includes(message.type))return;
+  if(!['GR_STATUS','GR_LOGIN','GR_SOLVE','GR_SOLVE_AI'].includes(message.type))return;
   (async()=>{
     const memory=await session();
     if(message.type==='GR_STATUS')return {authenticated:!!(await memory.get('grAuthKey')).grAuthKey};
@@ -47,6 +47,8 @@ chrome.runtime.onMessage.addListener((message,sender,reply)=>{
       }
       const exact=taskContext ? (GrLogic.solve(taskContext) ?? GrCalculations.solve(taskContext)) : null;
       if(typeof exact==='string')return {answer:exact};
+      // The local attempt never captures or transmits an unsupported question.
+      if(message.type==='GR_SOLVE')return {needsAi:true};
       let screenshot=await chrome.tabs.captureVisibleTab(tab.windowId,{format:'png'});
       await chrome.tabs.sendMessage(tab.id,{type:'GR_CAPTURED'}).catch(()=>{});
       const [after]=await chrome.tabs.query({active:true,windowId:tab.windowId});

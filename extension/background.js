@@ -1,4 +1,4 @@
-importScripts('config.js','vault.js','logic.js','calculations.js','graph.js','gigachat-direct.js');
+importScripts('config.js','vault.js','logic.js','calculations.js','gia11.js','task-files.js','graph.js','gigachat-direct.js');
 const pending=new Set();
 async function session() {
   if(!chrome.storage.session)throw new Error('Обновите Яндекс Браузер: требуется storage.session');
@@ -45,7 +45,7 @@ chrome.runtime.onMessage.addListener((message,sender,reply)=>{
       if(/^https?:\/\/(?:www\.)?vgaranov\.ru(?:\/|$)/i.test(tab.url || '') && typeof message.taskContext?.text==='string' && message.taskContext.text.length<=24000){
         taskContext=message.taskContext;
       }
-      const exact=taskContext ? (GrLogic.solve(taskContext) ?? GrCalculations.solve(taskContext)) : null;
+      const exact=taskContext ? (GrLogic.solve(taskContext) ?? GrCalculations.solve(taskContext) ?? GrGia11.solve(taskContext) ?? await GrTaskFiles.solve(taskContext,fetch,{throwOnError:true})) : null;
       if(typeof exact==='string')return {answer:exact};
       // The local attempt never captures or transmits an unsupported question.
       if(message.type==='GR_SOLVE')return {needsAi:true};

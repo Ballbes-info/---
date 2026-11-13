@@ -15,3 +15,9 @@ test('layout tables are excluded and turtle code is preserved',()=>{
  const context=GrTaskContext.extract({querySelector:()=>root},{location:{hostname:'vgaranov.ru'},innerWidth:1000,innerHeight:800});
  assert.equal(context.tables.length,1);assert.deepEqual(context.code,['Повтори 2 [Вперед 10 Налево 90]']);
 });
+test('superscripts and numeral bases are not flattened into digits',()=>{
+ const text=value=>({nodeType:3,textContent:value});
+ const root={tagName:'DIV',childNodes:[text('4'),{tagName:'SUP',textContent:'7849'},text(' и 6xy'),{tagName:'SUB',textContent:'46'}],querySelector:()=>({}),querySelectorAll:()=>[],getBoundingClientRect:()=>({x:0,y:0,width:500,height:100,top:0,bottom:100,left:0,right:500})};
+ const result=GrTaskContext.extract({querySelector:()=>root},{location:{hostname:'vgaranov.ru'},innerWidth:1000,innerHeight:800});
+ assert.equal(result.text,'4^(7849) и 6xy_(46)');
+});

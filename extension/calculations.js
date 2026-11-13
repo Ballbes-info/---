@@ -59,7 +59,8 @@
     const free=[];
     function walk(node,depth){if(node.leaf)return;for(const bit of ['0','1']){if(node[bit])walk(node[bit],depth+1);else free[depth+1]=(free[depth+1] || 0)+1;}}
     walk(trie,0);
-    const reserve=/заглавные буквы русского алфавита/i.test(text) && new Set([...Object.keys(known),...Object.keys(frequency)]).size<33;
+    const listed=text.match(/из набора:\s*([А-ЯЁA-Z](?:,\s*[А-ЯЁA-Z])*)/);
+    const reserve=(/заглавные буквы русского алфавита/i.test(text) && new Set([...Object.keys(known),...Object.keys(frequency)]).size<33) || !!listed?.[1].split(/,\s*/).some(c=>!(c in known)&&!(c in frequency));
     if(!weights.length)return !reserve || free.some(Boolean)?String(fixed):null;
     const maxDepth=Math.max(...codes.map(c=>c.length))+Math.ceil(Math.log2(weights.length+2))+2;
     const sums=[0];weights.forEach(w=>sums.push(sums.at(-1)+w));
@@ -81,7 +82,7 @@
   }
   function turtle(task){
     const text=task.text || '';
-    if(!/площадь области (пересечения|объединения) фигур/i.test(text) || !/положительного направления оси ординат/i.test(text) || !/хвост опущен/i.test(text))return null;
+    if(!/площадь области (пересечения|объединения) фигур|точек с целочисленными координатами.*внутри (пересечения|объединения) фигур/i.test(text) || !/положительного направления оси ординат/i.test(text) || !/хвост опущен/i.test(text))return null;
     let code=task.code?.at(-1);
     if(!code)code=text.split(/следующий алгоритм:/i)[1]?.split(/Определите/i)[0];
     if(!code || code.length>4000)return null;
@@ -122,6 +123,12 @@
     });
     if(rectangles.some(r=>!r))return null;
     const [a,b]=rectangles,intersection=Math.max(0,Math.min(a.hiX,b.hiX)-Math.max(a.loX,b.loX))*Math.max(0,Math.min(a.hiY,b.hiY)-Math.max(a.loY,b.loY));
+    if(/точек с целочисленными координатами/.test(text)){
+      const include=/границ[^.]*учитывать(?! не)|включая.*границ/.test(text)&&!/учитывать не следует/.test(text);
+      const count=r=>Math.max(0,include?Math.floor(r.hiX)-Math.ceil(r.loX)+1:Math.ceil(r.hiX)-Math.floor(r.loX)-1)*Math.max(0,include?Math.floor(r.hiY)-Math.ceil(r.loY)+1:Math.ceil(r.hiY)-Math.floor(r.loY)-1);
+      const overlap={loX:Math.max(a.loX,b.loX),hiX:Math.min(a.hiX,b.hiX),loY:Math.max(a.loY,b.loY),hiY:Math.min(a.hiY,b.hiY)};
+      return String(/внутри пересечения/.test(text)?count(overlap):count(a)+count(b)-count(overlap));
+    }
     return String(/площадь области пересечения/i.test(text)?intersection:a.area+b.area-intersection);
   }
   function solve(task){try{const text=task?.text || '';return audio(text) ?? transparency(text) ?? users(text) ?? fano(text) ?? turtle(task || {});}catch{return null;}}

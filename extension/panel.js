@@ -2,7 +2,7 @@
   if (globalThis.__grVasyaLoaded) return;
   globalThis.__grVasyaLoaded = true;
   let host, button, aiButton, output, password, notice, aiOffer = null, authenticated = false, visible = false, busy = false, epoch = 0, requestEpoch = -1;
-  const identity = context => context ? JSON.stringify([context.text,context.formula,context.tables,context.code]) : location.href;
+  const identity = context => context ? JSON.stringify([context.text,context.formula,context.tables,context.code,context.links]) : location.href;
   function render() {
     password.hidden = authenticated;
     notice.hidden = authenticated;

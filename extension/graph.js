@@ -24,16 +24,23 @@
       const signature=(array,degrees,index)=>degrees[index]+':'+array[index].flatMap((edge,i)=>edge?[degrees[i]]:[]).sort((a,b)=>a-b).join(',');
       const options=degree.map((_,i)=>vertices.flatMap((v,j)=>signature(adjacency,degree,i)===signature(graph,targetDegree,j)?[j]:[]));
       if(options.some(x=>!x.length))return null;
-      let kind,pairs=[];
+      let kind,pairs=[],selected;
       const range=task.text.match(/от пункта\s*№?\s*(\d+)\s*до пункта\s*№?\s*(\d+)/i);
       if(/выпишите последовательно/i.test(task.text)&&range&&Number(range[1])===1&&Number(range[2])===n)kind='mapping';
-      else if(/сумму протяж[её]нностей дорог/i.test(task.text)){
+      else if(/какие номера насел[её]нных пунктов/i.test(task.text)){
+        selected=task.text.match(/насел[её]нным пунктам\s+([A-ZА-ЯЁ])\s+и\s+([A-ZА-ЯЁ])/);
+        if(!selected)return null;kind='numbers';
+      }else if(/сумму протяж[её]нностей дорог/i.test(task.text)){
         pairs=[...task.text.matchAll(/из пункта\s+([A-ZА-ЯЁ])\s+в пункт\s+([A-ZА-ЯЁ])/g)].map(m=>[m[1],m[2]]);
         if(pairs.length!==2)return null;kind='sum';
       }else return null;
       const order=Array.from({length:n},(_,i)=>i).sort((a,b)=>options[a].length-options[b].length),mapping=Array(n).fill(-1),used=new Set(),answers=new Set();let visits=0,aborted=false;
       function answer(){
         if(kind==='mapping')return mapping.map(i=>vertices[i]).join('');
+        if(kind==='numbers'){
+          const result=selected.slice(1).map(v=>mapping.indexOf(vertices.indexOf(v))+1);if(result.some(n=>n===0))return null;
+          result.sort((a,b)=>/убывания/.test(task.text)?b-a:a-b);return result.join('');
+        }
         let sum=0;for(const [a,b] of pairs){const i=mapping.indexOf(vertices.indexOf(a)),j=mapping.indexOf(vertices.indexOf(b));if(i<0||j<0||!/^\d+$/.test(matrix[i][j]))return null;sum+=Number(matrix[i][j]);}return String(sum);
       }
       function search(depth){

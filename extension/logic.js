@@ -23,7 +23,7 @@
   }
   function intervals(task) {
     const text=task?.text || '';
-    if(!/наименьш/i.test(text) || !/длин/i.test(text) || !/отрез/i.test(text) || /целых|целом|натуральн/i.test(text))return null;
+    if(!/наименьш|наибольш/i.test(text) || !/длин/i.test(text) || !/отрез/i.test(text) || /целых|целом|натуральн/i.test(text))return null;
     const ranges={};
     const regex=/([A-Z])\s*=\s*\[\s*(-?\d+(?:[.,]\d+)?)\s*;\s*(-?\d+(?:[.,]\d+)?)\s*\]/g;
     for(const match of text.matchAll(regex)){
@@ -41,9 +41,17 @@
     });
     atoms.push({x:points.at(-1)+1,lo:points.at(-1),hi:Infinity});
     const evaluate=(x,a)=>formula.evaluate(Object.fromEntries([['A',a],...Object.entries(ranges).map(([v,[lo,hi]])=>[v,x>=lo&&x<=hi])]));
+    if(/наибольш/i.test(text)){
+      let best=null;
+      for(const lo of points)for(const hi of points){if(hi<lo)continue;if(atoms.every(a=>evaluate(a.x,a.x>=lo&&a.x<=hi))&&(!best||hi-lo>best.hi-best.lo))best={lo,hi};}
+      if(!best)return null;
+      const before=atoms.filter(a=>a.x<best.lo).at(-1),after=atoms.find(a=>a.x>best.hi);
+      if((before&&evaluate(before.x,true))||(after&&evaluate(after.x,true)))return null;
+      return String(Number((best.hi-best.lo).toPrecision(12)));
+    }
     const required=[];
     for(const atom of atoms){const no=evaluate(atom.x,false),yes=evaluate(atom.x,true);if(!no&&!yes)return null;if(!no)required.push(atom);}
-    if(!required.length)return null;
+    if(!required.length)return atoms.some(a=>evaluate(a.x,true))?'0':null;
     const lo=Math.min(...required.map(a=>a.lo)),hi=Math.max(...required.map(a=>a.hi));
     if(!Number.isFinite(lo)||!Number.isFinite(hi))return null;
     if(!atoms.every(a=>evaluate(a.x,a.x>=lo&&a.x<=hi)))return null;

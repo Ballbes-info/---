@@ -46,3 +46,7 @@ test('unsupported and incomplete questions fall back to AI',()=>{
  assert.equal(GrLogic.solve(task('Наименьшая длина отрезка P=[1;4]', 'P→A !!!')),null);
  assert.equal(GrLogic.solve({text:'Другое задание'}),null);
 });
+test('maximum bounded interval is found and unbounded maximum is refused',()=>{
+ assert.equal(GrLogic.solve(task('P = [2; 10]. Наибольшая длина отрезка А.','A→P')),'8');
+ assert.equal(GrLogic.solve(task('P = [2; 10]. Наибольшая длина отрезка А.','P→A')),null);
+});

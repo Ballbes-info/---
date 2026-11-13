@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ГР-вася",
-  "version": "0.8.0",
+  "version": "1.0.0",
   "description": "Помощник по информатике: текст задания, изображение и вычисление логических формул.",
   "permissions": [
     "activeTab",
@@ -25,6 +25,14 @@
   },
   "host_permissions": [
     "https://api.giga.chat/*",
-    "https://ngw.devices.sberbank.ru/*"
-  ]
+    "https://ngw.devices.sberbank.ru/*",
+    "https://vgaranov.ru/download/*"
+  ],
+  "minimum_chrome_version": "114",
+  "icons": {
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  }
 }

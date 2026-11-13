@@ -20,9 +20,19 @@
     }
     const formulas=Array.from(root.querySelectorAll('p[align="center"],b,math'),el=>(el.innerText || el.textContent || '').trim())
       .filter(text=>/[¬∧∨→≡↔⊕]/.test(text) && !/[а-яё]{4}/i.test(text));
-    const text=(root.innerText || '').trim().slice(0,24000);
+    function semantic(node){
+      if(node.nodeType===3)return node.textContent;
+      if(['SCRIPT','STYLE','INPUT','BUTTON'].includes(node.tagName))return '';
+      if(node.tagName==='SUP')return '^('+node.textContent+')';
+      if(node.tagName==='SUB')return '_('+node.textContent+')';
+      if(node.tagName==='BR')return '\n';
+      const value=Array.from(node.childNodes || [],semantic).join('');
+      return ['P','PRE','DIV','TR'].includes(node.tagName)?value+'\n':node.tagName==='TD'?value+'\t':value;
+    }
+    const text=(root.querySelector?.('sup,sub')?semantic(root):(root.innerText || '')).trim().slice(0,24000);
+    const links=Array.from(root.querySelectorAll('a[href]'),a=>({text:a.innerText,href:a.href})).filter(a=>/^https:\/\/vgaranov\.ru\/download\/[^?#]+\.(xlsx|txt)$/i.test(a.href));
     if(!text)return null;
-    return {text,tables,code,diagram,formula:formulas.sort((a,b)=>b.length-a.length)[0] || '',
+    return {text,tables,code,links,diagram,formula:formulas.sort((a,b)=>b.length-a.length)[0] || '',
       viewport:{width:view.innerWidth,height:view.innerHeight},
       rect:{x:box.x,y:box.y,width:box.width,height:box.height},
       clipped:box.top<0 || box.bottom>view.innerHeight || box.left<0 || box.right>view.innerWidth};

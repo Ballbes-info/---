@@ -1,3 +1,4 @@
+importScripts('config.js');
 const pending = new Set();
 async function toggle(tab) {
   if (!tab?.id || !/^https?:/.test(tab.url || '')) return;
@@ -12,6 +13,21 @@ chrome.commands.onCommand.addListener(async command => {
 });
 chrome.action.onClicked.addListener(tab => toggle(tab).catch(console.error));
 chrome.runtime.onMessage.addListener((message, sender, reply) => {
+  if (['GR_STATUS','GR_LOGIN'].includes(message.type) && sender.tab) {
+    (async () => {
+      const settings = await chrome.storage.local.get(['serverUrl','token']);
+      const server = settings.serverUrl || globalThis.GR_DEFAULT_SERVER;
+      if (message.type === 'GR_STATUS') return {authenticated:!!settings.token};
+      if (!server) throw new Error('Сервер пока не настроен');
+      const response = await fetch(server + '/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:message.password}),signal:AbortSignal.timeout(20000)});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Ошибка входа');
+      if (typeof data.token !== 'string' || !data.token) throw new Error('Ошибка ответа сервера');
+      await chrome.storage.local.set({serverUrl:server,token:data.token});
+      return {authenticated:true};
+    })().then(reply,error=>reply({error:error.message}));
+    return true;
+  }
   if (message.type === 'GR_PING' && sender.tab) { reply({ok:true}); return; }
   if (message.type !== 'GR_SOLVE' || !sender.tab) return;
   const tab = sender.tab;
@@ -21,8 +37,7 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
     try {
       const {serverUrl, token} = await chrome.storage.local.get(['serverUrl', 'token']);
       if (!serverUrl || !token) {
-        await chrome.runtime.openOptionsPage();
-        throw new Error('Войдите в настройках расширения');
+        return {authRequired:true,error:'Введите пароль'};
       }
       const [active] = await chrome.tabs.query({active: true, windowId: tab.windowId});
       if (active?.id !== tab.id) throw new Error('Вернитесь на вкладку с заданием');
@@ -34,7 +49,7 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
         method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + token},
         body: JSON.stringify({screenshot}), signal: AbortSignal.timeout(110000)
       });
-      if (response.status === 401) await chrome.storage.local.remove('token');
+      if (response.status === 401) {await chrome.storage.local.remove('token');return {authRequired:true,error:'Введите пароль заново'};}
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Ошибка сервера');
       return {answer: data.answer};

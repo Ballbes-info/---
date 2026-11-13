@@ -21,6 +21,7 @@ with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as z:
             if path.name == 'manifest.json':
                 manifest = json.loads(content)
                 manifest['optional_host_permissions'] = [origin+'/*']
+                manifest['host_permissions'] = [origin+'/*']
                 content = json.dumps(manifest,ensure_ascii=False,indent=2).encode()
             z.writestr(path.name,content)
 print(archive)

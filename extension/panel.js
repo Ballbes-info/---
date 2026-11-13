@@ -1,7 +1,13 @@
 (() => {
   if (globalThis.__grVasyaLoaded) return;
   globalThis.__grVasyaLoaded = true;
-  let host, button, output, visible = false, busy = false, epoch = 0;
+  let host, button, output, password, notice, authenticated = false, visible = false, busy = false, epoch = 0;
+  function render() {
+    password.hidden = authenticated;
+    notice.hidden = authenticated;
+    button.disabled = busy;
+    button.textContent = busy ? (authenticated ? 'Решаю…' : 'Вхожу…') : (authenticated ? 'Решить' : 'Войти');
+  }
   function create() {
     host = document.createElement('div');
     host.style.cssText = 'position:fixed;right:16px;top:16px;z-index:2147483647;display:none';
@@ -11,8 +17,11 @@
       header{height:12px;cursor:move;touch-action:none;background:repeating-linear-gradient(90deg,#c6cbd3 0 3px,transparent 3px 6px);width:30px;margin:0 auto 8px;border-radius:5px}
       button{width:100%;padding:9px;border:0;border-radius:6px;background:#3367d6;color:white;cursor:pointer;font:inherit}button:disabled{opacity:.6}
       output{display:block;white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;margin-top:6px}output:empty{display:none}
-    </style><section><header title="Перетащить окно" aria-label="Перетащить окно"></header><button>Решить</button><output aria-live="polite"></output></section>`;
+      input{box-sizing:border-box;width:100%;padding:8px;margin-bottom:8px;border:1px solid #c6cbd3;border-radius:6px;font:inherit}small{display:block;font-size:11px;line-height:1.3;margin-bottom:8px}[hidden]{display:none}
+    </style><section><header title="Перетащить окно" aria-label="Перетащить окно"></header><small>«Решить» отправляет снимок вкладки вашему серверу и в GigaChat.</small><input type="password" placeholder="Пароль" aria-label="Пароль доступа" autocomplete="off"><button>Войти</button><output aria-live="polite"></output></section>`;
     button = root.querySelector('button'); output = root.querySelector('output');
+    password = root.querySelector('input'); notice = root.querySelector('small');
+    password.onkeydown = event => {if(event.key === 'Enter') {event.preventDefault();button.click();}};
     const handle = root.querySelector('header');
     handle.addEventListener('pointerdown', event => {
       const box = host.getBoundingClientRect();
@@ -27,19 +36,29 @@
     });
     button.onclick = async () => {
       if (busy) return;
-      busy = true; button.disabled = true; button.textContent = 'Решаю…'; output.textContent = '';
+      if (!authenticated && !password.value) {password.focus();return;}
+      const login = !authenticated;
+      busy = true; render(); output.textContent = '';
       const requestEpoch = epoch;
       const keepAlive = setInterval(() => chrome.runtime.sendMessage({type:'GR_PING'}).catch(() => {}), 20000);
-      host.style.visibility = 'hidden';
+      if (!login) host.style.visibility = 'hidden';
       try {
-        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-        const result = await chrome.runtime.sendMessage({type:'GR_SOLVE'});
-        if (visible && requestEpoch === epoch) output.textContent = result?.error || result?.answer || 'Пустой ответ';
+        let result;
+        if (login) {
+          const value = password.value; password.value = '';
+          result = await chrome.runtime.sendMessage({type:'GR_LOGIN',password:value});
+          if (result?.authenticated) authenticated = true;
+        } else {
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          result = await chrome.runtime.sendMessage({type:'GR_SOLVE'});
+          if (result?.authRequired) authenticated = false;
+        }
+        if (visible && requestEpoch === epoch) output.textContent = result?.error || result?.answer || (login ? '' : 'Пустой ответ');
       } catch (error) {
         if (visible && requestEpoch === epoch) output.textContent = error.message;
       } finally {
         clearInterval(keepAlive);
-        busy = false; button.disabled = false; button.textContent = 'Решить'; host.style.visibility = '';
+        busy = false; render(); host.style.visibility = '';
       }
     };
     document.documentElement.append(host);
@@ -49,7 +68,14 @@
     if (message.type !== 'GR_TOGGLE') return;
     if (!host) create();
     visible = !visible; epoch++;
-    output.textContent = '';
+    output.textContent = ''; password.value = '';
     host.style.display = visible ? 'block' : 'none';
+    render();
+    if (visible) {
+      const current = epoch;
+      chrome.runtime.sendMessage({type:'GR_STATUS'}).then(result => {
+        if (visible && epoch === current && !busy) {authenticated = !!result?.authenticated;render();if(!authenticated)password.focus();}
+      }).catch(() => {});
+    }
   });
 })();

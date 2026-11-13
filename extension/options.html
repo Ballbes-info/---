@@ -1,7 +1,6 @@
 <!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ГР-вася — вход</title><link rel="stylesheet" href="options.css">
-<main><h1>ГР-вася</h1><p>При нажатии «Решить» снимок видимой части вкладки отправляется на ваш сервер и в GigaChat. Не снимайте страницы с личными данными.</p>
-<form><label>Адрес сервера (HTTPS или localhost)<input id="server" type="url" required placeholder="https://ваш-сервер.example"></label>
-<label>Пароль доступа<input id="password" type="password" required autocomplete="current-password"></label>
-<button>Войти</button><button id="logout" type="button">Выйти</button></form><p id="status" role="status"></p>
-<p>Ctrl + Shift + Y — показать / скрыть. Каждый клик «Решить» создаёт новый снимок. При скрытии ответ удаляется.</p></main><script src="config.js"></script><script src="options.js"></script></html>
+<title>ГР-вася</title><link rel="stylesheet" href="options.css"><main><h1>ГР-вася</h1>
+<p>Вход по паролю находится в маленьком окне на странице. Ctrl + Shift + Y показывает и скрывает его.</p>
+<p>«Решить» отправляет видимую часть вкладки напрямую в GigaChat. Проверяйте содержимое страницы перед снимком.</p>
+<p>Сервер не нужен. При подготовке владелец один раз запускает prepare-extension.ps1 и упаковывает зашифрованный ключ в расширение.</p>
+<button id="logout">Заблокировать расширение</button><p id="status" role="status"></p></main><script src="options.js"></script></html>

@@ -1,2 +1,2 @@
-// Для опубликованной сборки build.py подставляет HTTPS-адрес сервера.
-globalThis.GR_DEFAULT_SERVER = 'http://localhost:3000';
+// Выберите доступную вашему аккаунту модель с поддержкой изображений.
+globalThis.GR_MODEL = 'GigaChat-2-Max';

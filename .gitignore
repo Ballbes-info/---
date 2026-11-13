@@ -5,3 +5,4 @@ node_modules/
 dist/
 *.pem
 *.key
+extension/private-key.vault.json

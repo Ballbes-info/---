@@ -1,7 +1,7 @@
 (() => {
   if (globalThis.__grVasyaLoaded) return;
   globalThis.__grVasyaLoaded = true;
-  let host, button, output, password, notice, authenticated = false, visible = false, busy = false, epoch = 0;
+  let host, button, output, password, notice, authenticated = false, visible = false, busy = false, epoch = 0, requestEpoch = -1;
   function render() {
     password.hidden = authenticated;
     notice.hidden = authenticated;
@@ -18,7 +18,7 @@
       button{width:100%;padding:9px;border:0;border-radius:6px;background:#3367d6;color:white;cursor:pointer;font:inherit}button:disabled{opacity:.6}
       output{display:block;white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;margin-top:6px}output:empty{display:none}
       input{box-sizing:border-box;width:100%;padding:8px;margin-bottom:8px;border:1px solid #c6cbd3;border-radius:6px;font:inherit}small{display:block;font-size:11px;line-height:1.3;margin-bottom:8px}[hidden]{display:none}
-    </style><section><header title="Перетащить окно" aria-label="Перетащить окно"></header><small>«Решить» отправляет снимок вкладки вашему серверу и в GigaChat.</small><input type="password" placeholder="Пароль" aria-label="Пароль доступа" autocomplete="off"><button>Войти</button><output aria-live="polite"></output></section>`;
+    </style><section><header title="Перетащить окно" aria-label="Перетащить окно"></header><small>«Решить» отправляет снимок вкладки напрямую в GigaChat.</small><input type="password" placeholder="Пароль" aria-label="Пароль доступа" autocomplete="off"><button>Войти</button><output aria-live="polite"></output></section>`;
     button = root.querySelector('button'); output = root.querySelector('output');
     password = root.querySelector('input'); notice = root.querySelector('small');
     password.onkeydown = event => {if(event.key === 'Enter') {event.preventDefault();button.click();}};
@@ -39,7 +39,7 @@
       if (!authenticated && !password.value) {password.focus();return;}
       const login = !authenticated;
       busy = true; render(); output.textContent = '';
-      const requestEpoch = epoch;
+      requestEpoch = epoch;
       const keepAlive = setInterval(() => chrome.runtime.sendMessage({type:'GR_PING'}).catch(() => {}), 20000);
       if (!login) host.style.visibility = 'hidden';
       try {
@@ -64,7 +64,7 @@
     document.documentElement.append(host);
   }
   chrome.runtime.onMessage.addListener(message => {
-    if(message.type==='GR_PROGRESS') {if(visible && busy)output.textContent=message.text;return;}
+    if(message.type==='GR_PROGRESS') {if(visible && busy && requestEpoch===epoch)output.textContent=message.text;return;}
     if (message.type === 'GR_CAPTURED') { if(host) host.style.visibility = ''; return; }
     if (message.type !== 'GR_TOGGLE') return;
     if (!host) create();

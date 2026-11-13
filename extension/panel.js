@@ -18,7 +18,7 @@
       button{width:100%;padding:9px;border:0;border-radius:6px;background:#3367d6;color:white;cursor:pointer;font:inherit}button:disabled{opacity:.6}
       output{display:block;white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;margin-top:6px}output:empty{display:none}
       input{box-sizing:border-box;width:100%;padding:8px;margin-bottom:8px;border:1px solid #c6cbd3;border-radius:6px;font:inherit}small{display:block;font-size:11px;line-height:1.3;margin-bottom:8px}[hidden]{display:none}
-    </style><section><header title="Перетащить окно" aria-label="Перетащить окно"></header><small>«Решить» отправляет снимок вкладки напрямую в GigaChat.</small><input type="password" placeholder="Пароль" aria-label="Пароль доступа" autocomplete="off"><button>Войти</button><output aria-live="polite"></output></section>`;
+    </style><section><header title="Перетащить окно" aria-label="Перетащить окно"></header><small>«Решить» читает текущее задание. Если нужна модель, текст и снимок отправляются в GigaChat.</small><input type="password" placeholder="Пароль" aria-label="Пароль доступа" autocomplete="off"><button>Войти</button><output aria-live="polite"></output></section>`;
     button = root.querySelector('button'); output = root.querySelector('output');
     password = root.querySelector('input'); notice = root.querySelector('small');
     password.onkeydown = event => {if(event.key === 'Enter') {event.preventDefault();button.click();}};
@@ -50,7 +50,7 @@
           if (result?.authenticated) authenticated = true;
         } else {
           await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-          result = await chrome.runtime.sendMessage({type:'GR_SOLVE'});
+          result = await chrome.runtime.sendMessage({type:'GR_SOLVE',taskContext:globalThis.GrTaskContext?.extract() || null});
           if (result?.authRequired) authenticated = false;
         }
         if (visible && requestEpoch === epoch) output.textContent = result?.error || result?.answer || (login ? '' : 'Пустой ответ');

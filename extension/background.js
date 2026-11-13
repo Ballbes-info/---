@@ -1,4 +1,4 @@
-importScripts('config.js','vault.js','gigachat-direct.js');
+importScripts('config.js','vault.js','logic.js','gigachat-direct.js');
 const pending=new Set();
 async function session() {
   if(!chrome.storage.session)throw new Error('Обновите Яндекс Браузер: требуется storage.session');
@@ -7,7 +7,7 @@ async function session() {
 }
 async function toggle(tab) {
   if(!tab?.id || !/^https?:/.test(tab.url || ''))return;
-  await chrome.scripting.executeScript({target:{tabId:tab.id},files:['panel.js']});
+  await chrome.scripting.executeScript({target:{tabId:tab.id},files:['task-context.js','panel.js']});
   await chrome.tabs.sendMessage(tab.id,{type:'GR_TOGGLE'});
 }
 chrome.commands.onCommand.addListener(async command=>{
@@ -41,14 +41,36 @@ chrome.runtime.onMessage.addListener((message,sender,reply)=>{
       if(!grAuthKey)return {authRequired:true,error:'Введите пароль'};
       const [active]=await chrome.tabs.query({active:true,windowId:tab.windowId});
       if(active?.id!==tab.id)throw new Error('Вернитесь на вкладку с заданием');
-      const screenshot=await chrome.tabs.captureVisibleTab(tab.windowId,{format:'jpeg',quality:90});
+      let taskContext=null;
+      if(/^https?:\/\/(?:www\.)?vgaranov\.ru(?:\/|$)/i.test(tab.url || '') && typeof message.taskContext?.text==='string' && message.taskContext.text.length<=24000){
+        taskContext=message.taskContext;
+      }
+      const exact=taskContext ? GrLogic.solve(taskContext) : null;
+      if(typeof exact==='string')return {answer:exact};
+      let screenshot=await chrome.tabs.captureVisibleTab(tab.windowId,{format:'png'});
       await chrome.tabs.sendMessage(tab.id,{type:'GR_CAPTURED'}).catch(()=>{});
       const [after]=await chrome.tabs.query({active:true,windowId:tab.windowId});
       if(after?.id!==tab.id)throw new Error('Вкладка изменилась. Повторите запрос');
+      if(taskContext?.rect && typeof OffscreenCanvas!=='undefined'){
+        try{
+          const bitmap=await createImageBitmap(await (await fetch(screenshot)).blob());
+          const {rect,viewport}=taskContext;
+          const sx=bitmap.width/viewport.width,sy=bitmap.height/viewport.height;
+          const x=Math.max(0,Math.floor((rect.x-8)*sx)),y=Math.max(0,Math.floor((rect.y-8)*sy));
+          const width=Math.min(bitmap.width-x,Math.ceil((rect.width+16)*sx)),height=Math.min(bitmap.height-y,Math.ceil((rect.height+16)*sy));
+          if(width>0 && height>0){
+            const canvas=new OffscreenCanvas(width,height);canvas.getContext('2d').drawImage(bitmap,x,y,width,height,0,0,width,height);
+            const bytes=new Uint8Array(await (await canvas.convertToBlob({type:'image/png'})).arrayBuffer());
+            let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
+            screenshot='data:image/png;base64,'+btoa(binary);
+          }
+          bitmap.close();
+        }catch{/* Full lossless viewport remains available if cropping is unsupported. */}
+      }
       try{
         const answer=await GrGiga.solve(screenshot,grAuthKey,text=>{
           chrome.tabs.sendMessage(tab.id,{type:'GR_PROGRESS',text}).catch(()=>{});
-        });
+        },fetch,taskContext);
         return {answer};
       }finally{grAuthKey=null;}
     }finally{pending.delete(tab.id);}

@@ -40,3 +40,12 @@ test('photographer maximum photos from card count and partially filled last card
  assert.equal(solve({text:text.replace('358 карт','1 карт')}),'339');
  assert.equal(solve({text:text.replace('339 снимков','467 снимков')}),null);
 });
+
+test('last memory card count including a completely filled final card',()=>{
+ const text='Фотограф делает цветные фотографии размером 848×480 пикселей, используя палитру из 18663 цветов. Для сохранения снимков фотограф использует сменные карты памяти, на каждой из которых вмещает не более 2 Гбайт данных. Фотограф сделал 739798 снимков. Сколько снимков оказалось на последней карте памяти из использованных?';
+ const perCard=Math.floor(2*1024**3/(848*480*15/8));
+ assert.equal(perCard,2813);
+ assert.equal(solve({text}),String((739798-1)%perCard+1));
+ assert.equal(solve({text:text.replace('739798',String(perCard*3))}),String(perCard));
+ assert.equal(solve({text:text.replace('739798','1')}),'1');
+});

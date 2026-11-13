@@ -66,6 +66,12 @@
       const b=BigInt(m[1])*bytes(m[2])*8n/pixels-BigInt(a[1]);return b>=0n&&b<=64n?String(2n**b):null;
     }
     if(!palette)return null;const colors=bits(BigInt(palette[1]));
+    if(/сколько снимков оказалось на последней карте/i.test(t)){
+      const card=t.match(/вмещает(?:ся)? не более (\d+) ([КМГ]?байт[а-я]*)/i),count=t.match(/фотограф сделал (\d+) сним/i);
+      if(!card||!count)return null;
+      const perCard=BigInt(card[1])*bytes(card[2])/ceil(pixels*colors,8n),total=BigInt(count[1]);
+      return perCard>0n&&total>0n?String((total-1n)%perCard+1n):null;
+    }
     if(/максимальное количество снимков/.test(t)){
       const card=t.match(/вмещает(?:ся)? не более (\d+) ([КМГ]?байт[а-я]*)/i),count=t.match(/фотограф использовал (\d+) карт/i),last=t.match(/на последней (?:было|был|находилось) (\d+) сним/i);
       if(!card||!count||!last)return null;

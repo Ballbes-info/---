@@ -1,4 +1,4 @@
-importScripts('config.js','vault.js','logic.js','gigachat-direct.js');
+importScripts('config.js','vault.js','logic.js','calculations.js','graph.js','gigachat-direct.js');
 const pending=new Set();
 async function session() {
   if(!chrome.storage.session)throw new Error('Обновите Яндекс Браузер: требуется storage.session');
@@ -45,7 +45,7 @@ chrome.runtime.onMessage.addListener((message,sender,reply)=>{
       if(/^https?:\/\/(?:www\.)?vgaranov\.ru(?:\/|$)/i.test(tab.url || '') && typeof message.taskContext?.text==='string' && message.taskContext.text.length<=24000){
         taskContext=message.taskContext;
       }
-      const exact=taskContext ? GrLogic.solve(taskContext) : null;
+      const exact=taskContext ? (GrLogic.solve(taskContext) ?? GrCalculations.solve(taskContext)) : null;
       if(typeof exact==='string')return {answer:exact};
       let screenshot=await chrome.tabs.captureVisibleTab(tab.windowId,{format:'png'});
       await chrome.tabs.sendMessage(tab.id,{type:'GR_CAPTURED'}).catch(()=>{});
@@ -68,7 +68,7 @@ chrome.runtime.onMessage.addListener((message,sender,reply)=>{
         }catch{/* Full lossless viewport remains available if cropping is unsupported. */}
       }
       try{
-        const answer=await GrGiga.solve(screenshot,grAuthKey,text=>{
+        const answer=await GrGiga.solve(taskContext?.diagram || screenshot,grAuthKey,text=>{
           chrome.tabs.sendMessage(tab.id,{type:'GR_PROGRESS',text}).catch(()=>{});
         },fetch,taskContext);
         return {answer};

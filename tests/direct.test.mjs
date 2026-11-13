@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import '../extension/gigachat-direct.js';
+import '../extension/graph.js';
 const screenshot='data:image/jpeg;base64,/9j/2Q==';
 function provider(fail=false){
  const calls=[];let count=0;
@@ -49,4 +50,16 @@ test('streamed generation combines chunks and extracts final line',async()=>{
   return new Response(data,{headers:{'content-type':'text/event-stream'}});
  };
  assert.equal(await GrGiga.solve(screenshot,'auth-test',()=>{},p.fetch),'195');
+});
+test('graph recognition is checked locally and incorrect edges are retried',async()=>{
+ const context={text:'Нумерация населённых пунктов не связана с буквами на графе. Определите сумму протяженностей дорог из пункта A в пункт B и из пункта B в пункт C.',tables:[[['','1','2','3'],['1','','5',''],['2','5','','7'],['3','','7','']]]};
+ const p=provider(),original=p.fetch;let attempts=0;
+ p.fetch=async(url,options)=>{
+  if(!url.endsWith('/chat/completions'))return original(url,options);
+  attempts++;
+  const edges=attempts===1?[['A','B']]:[['A','B'],['B','C']];
+  return Response.json({choices:[{message:{content:JSON.stringify({vertices:['A','B','C'],edges})}}]});
+ };
+ assert.equal(await GrGiga.solve(screenshot,'auth-test',()=>{},p.fetch,context),'12');
+ assert.equal(attempts,2);
 });

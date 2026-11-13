@@ -33,3 +33,10 @@ test('eight audio and record-storage examples match site answers',()=>{
 test('fresh release-control answers were accepted by the site on 8/8',()=>{
  for(const t of final)assert.equal(solve(t),t.expected,t.text);
 });
+
+test('photographer maximum photos from card count and partially filled last card',()=>{
+ const text='Фотограф делает цветные фотографии размером 3840×2400 пикселей, используя палитру из 198 цветов. Для сохранения снимков фотограф использует сменные карты памяти, на каждой из которых вмещается не более 4 Гбайт данных. Когда на карте остаётся недостаточно места для записи новой фотографии, фотограф заменяет карту на следующую свободную. Фотограф использовал 358 карт, причём на последней было 339 снимков. Какое максимальное количество снимков мог сделать фотограф?';
+ assert.equal(solve({text}),'166701');
+ assert.equal(solve({text:text.replace('358 карт','1 карт')}),'339');
+ assert.equal(solve({text:text.replace('339 снимков','467 снимков')}),null);
+});

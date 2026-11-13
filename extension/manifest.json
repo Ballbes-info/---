@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "ГР-вася",
+  "version": "0.1.0",
+  "description": "Решение одного задания со скриншота по явному нажатию пользователя.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "optional_host_permissions": ["https://*/*"],
+  "background": {"service_worker": "background.js"},
+  "options_page": "options.html",
+  "action": {"default_title": "ГР-вася: показать / скрыть"},
+  "commands": {"toggle": {"suggested_key": {"default": "Alt+Shift+E"}, "description": "Показать или скрыть ГР-васю"}}
+}

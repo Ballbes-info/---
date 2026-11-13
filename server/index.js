@@ -3,7 +3,7 @@ import {pathToFileURL} from 'node:url';
 import {equal,issue,valid,decodeImage} from './security.js';
 import {createSolver} from './gigachat.js';
 export function createApp(env=process.env, solve=createSolver(env)) {
-  if(!env.ACCESS_PASSWORD || env.ACCESS_PASSWORD.length<12 || !env.SESSION_SECRET || env.SESSION_SECRET.length<32) throw new Error('Задайте ACCESS_PASSWORD (12+ символов) и SESSION_SECRET (32+ символов)');
+  if(!env.ACCESS_PASSWORD || env.ACCESS_PASSWORD.length<4 || !env.SESSION_SECRET || env.SESSION_SECRET.length<32) throw new Error('Задайте ACCESS_PASSWORD (4+ символа) и SESSION_SECRET (32+ символов)');
   const allowed=new Set((env.ALLOWED_EXTENSION_IDS || '').split(',').filter(Boolean));
   const attempts=new Map();let day='',total=0,inFlight=false;
   function limited(ip) {

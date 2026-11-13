@@ -29,6 +29,7 @@
       if (busy) return;
       busy = true; button.disabled = true; button.textContent = 'Решаю…'; output.textContent = '';
       const requestEpoch = epoch;
+      const keepAlive = setInterval(() => chrome.runtime.sendMessage({type:'GR_PING'}).catch(() => {}), 20000);
       host.style.visibility = 'hidden';
       try {
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -37,6 +38,7 @@
       } catch (error) {
         if (visible && requestEpoch === epoch) output.textContent = error.message;
       } finally {
+        clearInterval(keepAlive);
         busy = false; button.disabled = false; button.textContent = 'Решить'; host.style.visibility = '';
       }
     };

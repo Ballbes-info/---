@@ -12,6 +12,7 @@ chrome.commands.onCommand.addListener(async command => {
 });
 chrome.action.onClicked.addListener(tab => toggle(tab).catch(console.error));
 chrome.runtime.onMessage.addListener((message, sender, reply) => {
+  if (message.type === 'GR_PING' && sender.tab) { reply({ok:true}); return; }
   if (message.type !== 'GR_SOLVE' || !sender.tab) return;
   const tab = sender.tab;
   (async () => {

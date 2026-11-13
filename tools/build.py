@@ -11,7 +11,9 @@ if u.scheme != 'https' or not u.netloc or u.path not in ('','/') or u.query or u
 origin = f'https://{u.netloc}'
 dist = root / 'dist'
 dist.mkdir(exist_ok=True)
-with zipfile.ZipFile(dist / 'gr-vasya-0.1.0.zip', 'w', zipfile.ZIP_DEFLATED) as z:
+version = json.loads((root / 'extension/manifest.json').read_text())['version']
+archive = dist / f'gr-vasya-{version}.zip'
+with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as z:
     for path in sorted((root / 'extension').iterdir()):
         if path.is_file():
             content = path.read_bytes()
@@ -21,4 +23,4 @@ with zipfile.ZipFile(dist / 'gr-vasya-0.1.0.zip', 'w', zipfile.ZIP_DEFLATED) as 
                 manifest['optional_host_permissions'] = [origin+'/*']
                 content = json.dumps(manifest,ensure_ascii=False,indent=2).encode()
             z.writestr(path.name,content)
-print(dist / 'gr-vasya-0.1.0.zip')
+print(archive)
